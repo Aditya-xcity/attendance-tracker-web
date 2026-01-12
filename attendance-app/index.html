@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Tracker</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>📊 Attendance Tracker</h1>
+            <div id="dateTime" class="datetime"></div>
+        </header>
+
+        <main class="app-main">
+            <!-- Inputs -->
+            <section class="input-section">
+                <div class="input-group">
+                    <input type="text" id="subjectInput" class="subject-input" placeholder="📝 Enter subject (optional)">
+                    <div class="input-hint">e.g., Mathematics, Physics</div>
+                </div>
+                
+                <div class="input-group">
+                    <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search roll number or name">
+                    <div class="input-hint">Type to filter students</div>
+                </div>
+            </section>
+
+            <!-- Attendance Grid -->
+            <section class="attendance-section">
+                <div class="section-header">
+                    <h2>Students</h2>
+                    <div class="stats">
+                        <span class="stat present-count">Present: <span id="presentCount">0</span></span>
+                        <span class="stat total-count">Total: <span id="totalCount">0</span></span>
+                    </div>
+                </div>
+                
+                <div id="grid" class="grid"></div>
+                
+                <div class="quick-actions">
+                    <button onclick="markAllPresent()" class="quick-action-btn primary-action">
+                        <span class="btn-icon">✓</span> Mark All Present
+                    </button>
+                    <button onclick="clearAllAttendance()" class="quick-action-btn secondary-action">
+                        <span class="btn-icon">↺</span> Clear All
+                    </button>
+                </div>
+            </section>
+
+            <!-- Console -->
+            <section class="console-section">
+                <div class="console-box">
+                    <div class="console-header">
+                        <span>📋 Present Roll Numbers</span>
+                        <span class="console-count">(<span id="consoleCount">0</span>)</span>
+                    </div>
+                    <textarea id="attendanceConsole" readonly placeholder="No attendance marked yet..."></textarea>
+                    <div class="console-actions">
+                        <button onclick="copyAttendance()" class="primary-action">
+                            <span class="btn-icon">📋</span> Copy List
+                        </button>
+                        <button onclick="copyAsCSV()" class="secondary-action">
+                            <span class="btn-icon">📄</span> Copy CSV
+                        </button>
+                        <button onclick="shareAttendance()" class="accent-action">
+                            <span class="btn-icon">📱</span> Share
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Actions -->
+            <section class="actions-section">
+                <div class="buttons">
+                    <button onclick="generatePDF()" class="primary-action">
+                        <span class="btn-icon">📥</span> Download PDF
+                    </button>
+                    <button onclick="resetAttendance()" class="secondary-action">
+                        <span class="btn-icon">🔄</span> Reset All
+                    </button>
+                    <button onclick="printSummary()" class="accent-action">
+                        <span class="btn-icon">🖨️</span> Print Summary
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-info">
+                <p>Attendance Tracker v1.0 • Click roll numbers to toggle attendance</p>
+                <p class="footer-hint">Press number keys (1-61) for quick marking</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scripts - ORDER IS IMPORTANT -->
+    <!-- jsPDF must load first -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Then your scripts -->
+    <script src="assets/js/students.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/pdf.js"></script>
+    
+    <!-- Load jsPDF if CDN fails -->
+    <script>
+        // Check if jsPDF loaded properly
+        window.addEventListener('load', function() {
+            if (typeof window.jspdf === 'undefined') {
+                console.warn('jsPDF not loaded from primary CDN');
+                // Try alternative CDN
+                const fallbackScript = document.createElement('script');
+                fallbackScript.src = 'https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js';
+                fallbackScript.onload = function() {
+                    console.log('jsPDF loaded from fallback CDN');
+                };
+                fallbackScript.onerror = function() {
+                    console.error('Failed to load jsPDF from all sources');
+                };
+                document.head.appendChild(fallbackScript);
+            } else {
+                console.log('jsPDF loaded successfully');
+            }
+        });
+    </script>
+</body>
+</html>
