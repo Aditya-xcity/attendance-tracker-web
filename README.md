@@ -5,7 +5,9 @@ A clean, mobile‑first web application to quickly mark student attendance, gene
 Built using **HTML, CSS, and Vanilla JavaScript**.
 
 ---
-
+## Demo
+https://rawcdn.githack.com/Aditya-xcity/attendance-tracker-web/85209a4b2115e070cc88cb4c1f1983014ef5ebde/attendance-app/index.html
+---
 ## 👤 Author
 
 **Aditya Bhardwaj**
@@ -167,3 +169,4 @@ This project was built as a **practical, real‑world attendance tool** and demo
 
 **Made with focus and consistency by Aditya Bhardwaj**
 *Simple tools. Real utility.*
+
