@@ -1,7 +1,9 @@
 // pdf.js
-function generatePDF() {
+// PDF Generation Function
+
+window.generatePDF = function() {
     try {
-        // Check if jsPDF is loaded - use window.jspdf, not jsPDF
+        // Check if jsPDF is loaded
         if (typeof window.jspdf === 'undefined') {
             showToast("PDF library is loading. Please wait...", "warning");
             
@@ -12,7 +14,7 @@ function generatePDF() {
                 script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
                 script.onload = function() {
                     window.jspdfLoading = false;
-                    generatePDF(); // Retry
+                    window.generatePDF(); // Retry
                 };
                 script.onerror = function() {
                     window.jspdfLoading = false;
@@ -24,7 +26,7 @@ function generatePDF() {
         }
 
         // Get the jsPDF constructor from window.jspdf
-        const { jsPDF: JsPDF } = window.jspdf; // Rename to avoid conflict
+        const { jsPDF: JsPDF } = window.jspdf;
         
         if (!JsPDF) {
             showToast("PDF library failed to initialize.", "error");
@@ -32,7 +34,7 @@ function generatePDF() {
         }
 
         // Check if there's attendance to export
-        if (presentSet.size === 0 && students.length > 0) {
+        if (window.presentSet && window.presentSet.size === 0 && window.students && window.students.length > 0) {
             showToast("No attendance marked to export!", "warning");
             return;
         }
@@ -41,6 +43,7 @@ function generatePDF() {
         const doc = new JsPDF();
         
         // Get subject
+        const subjectInput = document.getElementById('subjectInput');
         const subject = subjectInput && subjectInput.value ? subjectInput.value.trim() : "Attendance";
         
         // Get current date and time
@@ -82,8 +85,8 @@ function generatePDF() {
         yPos += 15;
         
         // =========== SUMMARY SECTION ===========
-        const totalStudents = students.length;
-        const presentCount = presentSet.size;
+        const totalStudents = window.students ? window.students.length : 0;
+        const presentCount = window.presentSet ? window.presentSet.size : 0;
         const absentCount = totalStudents - presentCount;
         const attendancePercentage = totalStudents > 0 ? ((presentCount / totalStudents) * 100).toFixed(1) : 0;
         
@@ -110,7 +113,7 @@ function generatePDF() {
         yPos += 35;
         
         // =========== PRESENT STUDENTS SECTION ===========
-        if (presentSet.size > 0) {
+        if (presentCount > 0) {
             doc.setFontSize(16);
             doc.setTextColor(34, 197, 94);
             doc.setFont("helvetica", "bold");
@@ -118,10 +121,10 @@ function generatePDF() {
             yPos += 10;
             
             // Sort present roll numbers
-            const presentList = [...presentSet].sort((a, b) => a - b);
+            const presentList = window.presentSet ? [...window.presentSet].sort((a, b) => a - b) : [];
             
             // Get student details
-            const presentStudents = students
+            const presentStudents = window.students
                 .filter(s => presentList.includes(s.rollNo))
                 .sort((a, b) => a.rollNo - b.rollNo);
             
@@ -132,7 +135,6 @@ function generatePDF() {
             // Create two columns
             let col1X = margin;
             let col2X = pageWidth / 2;
-            let currentCol = 1;
             let colY = yPos;
             
             presentStudents.forEach((student, index) => {
@@ -173,8 +175,8 @@ function generatePDF() {
             yPos = margin;
         }
         
-        const absentStudents = students
-            .filter(s => !presentSet.has(s.rollNo))
+        const absentStudents = window.students
+            .filter(s => !window.presentSet || !window.presentSet.has(s.rollNo))
             .sort((a, b) => a.rollNo - b.rollNo);
         
         if (absentStudents.length > 0) {
@@ -226,10 +228,15 @@ function generatePDF() {
         // Save the PDF
         doc.save(fileName);
         
-        showToast("PDF downloaded successfully!", "success");
+        // Show success message
+        if (typeof showToast === 'function') {
+            showToast("PDF downloaded successfully!", "success");
+        }
         
     } catch (error) {
         console.error('PDF Generation Error:', error);
-        showToast("Failed to generate PDF: " + error.message, "error");
+        if (typeof showToast === 'function') {
+            showToast("Failed to generate PDF: " + error.message, "error");
+        }
     }
-}
+};

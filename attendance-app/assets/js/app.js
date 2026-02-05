@@ -1,19 +1,25 @@
 // app.js
 // Global variables
 const grid = document.getElementById("grid");
+const attendanceConsoleSpace = document.getElementById("attendanceConsoleSpace");
 const searchInput = document.getElementById("searchInput");
 const attendanceConsole = document.getElementById("attendanceConsole");
 const presentCountElement = document.getElementById("presentCount");
 const totalCountElement = document.getElementById("totalCount");
 const consoleCountElement = document.getElementById("consoleCount");
 const subjectInput = document.getElementById("subjectInput");
+const absentCountElement = document.getElementById("absentCount");
+const storageStatusElement = document.getElementById("storageStatus");
 
 let presentSet = new Set();
+// Ensure students array exists
+window.students = window.students || [];
 
 // Initialize app
 function initApp() {
-    if (students.length === 0) {
+    if (!students || students.length === 0) {
         console.log('Waiting for students data...');
+        showToast('No students data loaded. Please check data.js', 'warning');
         return;
     }
     
@@ -26,7 +32,7 @@ function initApp() {
     // Auto-save every 30 seconds
     setInterval(saveToLocalStorage, 30000);
     
-    console.log('App initialized successfully');
+    console.log('App initialized successfully with', students.length, 'students');
 }
 
 // Render grid with students
@@ -55,7 +61,9 @@ function renderGrid() {
         grid.appendChild(div);
     });
     
-    totalCountElement.textContent = students.length;
+    if (totalCountElement) {
+        totalCountElement.textContent = students.length;
+    }
     updateCounters();
 }
 
@@ -89,22 +97,51 @@ function toggleAttendance(rollNo, element) {
 // Update counters
 function updateCounters() {
     const presentCount = presentSet.size;
-    presentCountElement.textContent = presentCount;
-    consoleCountElement.textContent = presentCount;
+    const totalCount = students.length;
+    const absentCount = totalCount - presentCount;
+    
+    if (presentCountElement) {
+        presentCountElement.textContent = presentCount;
+    }
+    if (consoleCountElement) {
+        consoleCountElement.textContent = presentCount;
+    }
+    if (absentCountElement) {
+        absentCountElement.textContent = absentCount;
+    }
+    
+    // Update storage status
+    if (storageStatusElement) {
+        storageStatusElement.textContent = `Saved (${presentCount}/${totalCount})`;
+    }
 }
 
 // Update console
 function updateConsole() {
     const list = [...presentSet].sort((a, b) => a - b);
-    
+
     if (list.length === 0) {
-        attendanceConsole.value = "";
-        attendanceConsole.placeholder = "No attendance marked yet...";
+        if (attendanceConsole) {
+            attendanceConsole.value = "";
+            attendanceConsole.placeholder = "5, 7, 8, 12";
+        }
+        
+        if (attendanceConsoleSpace) {
+            attendanceConsoleSpace.value = "";
+            attendanceConsoleSpace.placeholder = "5 7 8 12";
+        }
         return;
     }
-    
-    attendanceConsole.value = list.join(", ");
-    attendanceConsole.scrollTop = attendanceConsole.scrollHeight;
+
+    // Comma + space format → 5, 7, 8, 12
+    if (attendanceConsole) {
+        attendanceConsole.value = list.join(", ");
+    }
+
+    // Space-separated format → 5 7 8 12
+    if (attendanceConsoleSpace) {
+        attendanceConsoleSpace.value = list.join(" ");
+    }
 }
 
 // Filter grid
@@ -133,7 +170,10 @@ function filterGrid() {
 function handleEnterKey(e) {
     if (e.key !== "Enter") return;
     
-    const visible = [...document.querySelectorAll(".circle:not([style*='display: none']):not([style*='display:none'])")];
+    const visible = [...document.querySelectorAll(".circle")].filter(circle => {
+        const style = window.getComputedStyle(circle);
+        return style.display !== "none" && style.visibility !== "hidden";
+    });
     
     if (visible.length === 0) return;
     
@@ -141,13 +181,15 @@ function handleEnterKey(e) {
     const rollNo = parseInt(first.dataset.roll);
     toggleAttendance(rollNo, first);
     
-    searchInput.value = "";
-    filterGrid();
-    searchInput.focus();
+    if (searchInput) {
+        searchInput.value = "";
+        filterGrid();
+        searchInput.focus();
+    }
 }
 
-// Copy attendance
-function copyAttendance() {
+// Copy comma-separated format
+function copyCommaSeparated() {
     if (presentSet.size === 0) {
         showToast("No attendance to copy!", "warning");
         return;
@@ -157,13 +199,87 @@ function copyAttendance() {
     const textToCopy = list.join(", ");
     
     navigator.clipboard.writeText(textToCopy)
-        .then(() => showToast("Copied to clipboard!", "success"))
+        .then(() => showCopyFeedback(event, "Copied!"))
         .catch(() => {
             // Fallback
-            attendanceConsole.select();
-            document.execCommand("copy");
-            showToast("Copied to clipboard!", "success");
+            if (attendanceConsole) {
+                attendanceConsole.select();
+                document.execCommand("copy");
+            }
+            showCopyFeedback(event, "Copied!");
         });
+}
+
+// Copy space-separated format
+function copySpaceSeparated() {
+    if (presentSet.size === 0) {
+        showToast("No attendance to copy!", "warning");
+        return;
+    }
+    
+    const list = [...presentSet].sort((a, b) => a - b);
+    const textToCopy = list.join(" ");
+    
+    navigator.clipboard.writeText(textToCopy)
+        .then(() => showCopyFeedback(event, "Copied!"))
+        .catch(() => {
+            // Fallback
+            if (attendanceConsoleSpace) {
+                attendanceConsoleSpace.select();
+                document.execCommand("copy");
+            }
+            showCopyFeedback(event, "Copied!");
+        });
+}
+
+// Copy both formats
+function copyBothFormats() {
+    if (presentSet.size === 0) {
+        showToast("No attendance to copy!", "warning");
+        return;
+    }
+    
+    const list = [...presentSet].sort((a, b) => a - b);
+    const commaFormat = list.join(", ");
+    const spaceFormat = list.join(" ");
+    const bothFormats = `Comma-separated: ${commaFormat}\nSpace-separated: ${spaceFormat}`;
+    
+    navigator.clipboard.writeText(bothFormats)
+        .then(() => showToast("Both formats copied!", "success"))
+        .catch(() => {
+            // Fallback
+            const textArea = document.createElement('textarea');
+            textArea.value = bothFormats;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showToast("Both formats copied!", "success");
+        });
+}
+
+// Show feedback next to copy button
+function showCopyFeedback(event, message) {
+    const btn = event.currentTarget || event.target;
+    const feedback = document.createElement('div');
+    feedback.className = 'copy-feedback';
+    feedback.textContent = message;
+    
+    btn.parentElement.style.position = 'relative';
+    btn.parentElement.appendChild(feedback);
+    
+    setTimeout(() => {
+        feedback.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+        feedback.classList.remove('show');
+        setTimeout(() => {
+            if (feedback.parentNode) {
+                feedback.remove();
+            }
+        }, 300);
+    }, 1500);
 }
 
 // Copy as CSV
@@ -174,7 +290,7 @@ function copyAsCSV() {
     }
     
     const list = [...presentSet].sort((a, b) => a - b);
-    const subject = subjectInput.value || "Attendance";
+    const subject = subjectInput ? subjectInput.value : "Attendance";
     const date = new Date().toLocaleDateString('en-IN');
     const csvData = `Subject: ${subject}\nDate: ${date}\nPresent Roll Numbers:\n${list.join(",")}`;
     
@@ -191,7 +307,7 @@ function shareAttendance() {
     }
     
     const list = [...presentSet].sort((a, b) => a - b);
-    const subject = subjectInput.value || "Class";
+    const subject = subjectInput ? subjectInput.value : "Class";
     const date = new Date().toLocaleDateString('en-IN', {
         day: 'numeric',
         month: 'short',
@@ -218,7 +334,7 @@ function fallbackShare(text) {
 // Print summary
 function printSummary() {
     const list = [...presentSet].sort((a, b) => a - b);
-    const subject = subjectInput.value || "Attendance";
+    const subject = subjectInput ? subjectInput.value : "Attendance";
     const date = new Date().toLocaleString('en-IN', {
         day: 'numeric',
         month: 'short',
@@ -269,6 +385,10 @@ function printSummary() {
 
 // Mark all present
 function markAllPresent() {
+    if (!confirm("Mark all students as present?")) {
+        return;
+    }
+    
     students.forEach(student => {
         presentSet.add(student.rollNo);
     });
@@ -285,6 +405,15 @@ function markAllPresent() {
 
 // Clear all attendance
 function clearAllAttendance() {
+    if (presentSet.size === 0) {
+        showToast("No attendance to clear!", "info");
+        return;
+    }
+    
+    if (!confirm("Clear all attendance?")) {
+        return;
+    }
+    
     presentSet.clear();
     document.querySelectorAll(".present").forEach(circle => {
         circle.classList.remove("present");
@@ -298,10 +427,8 @@ function clearAllAttendance() {
 
 // Reset attendance
 function resetAttendance() {
-    if (presentSet.size > 0) {
-        if (!confirm("Are you sure you want to reset all attendance? This cannot be undone.")) {
-            return;
-        }
+    if (!confirm("Are you sure you want to reset all attendance? This will clear subject and attendance data.")) {
+        return;
     }
     
     presentSet.clear();
@@ -344,24 +471,25 @@ function updateDateTime() {
 
 // Toast notifications
 function showToast(message, type = "info") {
-    // Remove existing toasts
-    const existingToasts = document.querySelectorAll('.toast');
-    existingToasts.forEach(toast => toast.remove());
+    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
     
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
+    toast.className = `toast ${type}`;
     toast.innerHTML = `
         <span class="toast-icon">${getToastIcon(type)}</span>
         <span class="toast-message">${message}</span>
     `;
     
-    document.body.appendChild(toast);
+    toastContainer.appendChild(toast);
     
-    setTimeout(() => toast.classList.add('show'), 10);
-    
+    // Auto-remove after 3 seconds
     setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
+        toast.style.animation = 'slideOutRight 0.3s ease forwards';
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 300);
     }, 3000);
 }
 
@@ -373,6 +501,16 @@ function getToastIcon(type) {
         info: 'ℹ'
     };
     return icons[type] || 'ℹ';
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container';
+    container.setAttribute('aria-live', 'polite');
+    container.setAttribute('aria-atomic', 'true');
+    document.body.appendChild(container);
+    return container;
 }
 
 // LocalStorage functions
@@ -391,22 +529,38 @@ function loadSavedData() {
         if (!saved) return;
         
         const data = JSON.parse(saved);
-        if (data.present && Array.isArray(data.present)) {
-            data.present.forEach(roll => presentSet.add(roll));
-            
-            if (data.subject && subjectInput) {
-                subjectInput.value = data.subject;
+        
+        // Check if data is not too old (optional: e.g., 24 hours)
+        const savedTime = new Date(data.timestamp);
+        const currentTime = new Date();
+        const hoursDiff = (currentTime - savedTime) / (1000 * 60 * 60);
+        
+        if (hoursDiff > 24) {
+            if (confirm("Found saved attendance from more than 24 hours ago. Load it?")) {
+                loadData(data);
             }
-            
-            // Re-render to show saved state
-            renderGrid();
-            updateConsole();
-            updateCounters();
-            
-            showToast('Previous attendance restored', 'info');
+        } else {
+            loadData(data);
         }
     } catch (error) {
         console.error('Error loading saved data:', error);
+    }
+}
+
+function loadData(data) {
+    if (data.present && Array.isArray(data.present)) {
+        data.present.forEach(roll => presentSet.add(roll));
+        
+        if (data.subject && subjectInput) {
+            subjectInput.value = data.subject;
+        }
+        
+        // Re-render to show saved state
+        renderGrid();
+        updateConsole();
+        updateCounters();
+        
+        showToast('Previous attendance restored', 'info');
     }
 }
 
@@ -417,9 +571,14 @@ function setupEventListeners() {
         searchInput.addEventListener("keydown", handleEnterKey);
     }
     
-    // Keyboard shortcuts
+    // Global keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-        // Number keys 1-9
+        // Ignore if user is typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+        
+        // Number keys 1-9 for quick marking
         if (e.key >= 1 && e.key <= 9) {
             const rollNumber = parseInt(e.key);
             const circle = document.querySelector(`.circle[data-roll="${rollNumber}"]`);
@@ -428,18 +587,16 @@ function setupEventListeners() {
             }
         }
         
-        // Ctrl shortcuts
+        // Ctrl/Cmd shortcuts
         if (e.ctrlKey || e.metaKey) {
             switch(e.key.toLowerCase()) {
                 case 'c':
-                    if (document.activeElement !== searchInput) {
-                        e.preventDefault();
-                        copyAttendance();
-                    }
+                    e.preventDefault();
+                    copyCommaSeparated();
                     break;
                 case 'p':
                     e.preventDefault();
-                    generatePDF();
+                    printSummary();
                     break;
                 case 'r':
                     e.preventDefault();
@@ -447,9 +604,26 @@ function setupEventListeners() {
                     break;
                 case 'f':
                     e.preventDefault();
-                    if (searchInput) searchInput.focus();
+                    if (searchInput) {
+                        searchInput.focus();
+                        searchInput.select();
+                    }
+                    break;
+                case 'a':
+                    e.preventDefault();
+                    markAllPresent();
+                    break;
+                case 'd':
+                    e.preventDefault();
+                    clearAllAttendance();
                     break;
             }
+        }
+        
+        // Escape key to clear search
+        if (e.key === 'Escape' && searchInput) {
+            searchInput.value = '';
+            filterGrid();
         }
     });
     
@@ -457,15 +631,44 @@ function setupEventListeners() {
     setInterval(updateDateTime, 1000);
 }
 
-// Start the app when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        if (students.length > 0) {
-            initApp();
-        }
-    });
-} else {
-    if (students.length > 0) {
-        initApp();
+// Make functions available globally
+window.initApp = initApp;
+window.copyCommaSeparated = copyCommaSeparated;
+window.copySpaceSeparated = copySpaceSeparated;
+window.copyBothFormats = copyBothFormats;
+window.copyAttendance = copyCommaSeparated; // Alias for backward compatibility
+window.copyAsCSV = copyAsCSV;
+window.shareAttendance = shareAttendance;
+window.printSummary = printSummary;
+window.markAllPresent = markAllPresent;
+window.clearAllAttendance = clearAllAttendance;
+window.resetAttendance = resetAttendance;
+window.generatePDF = function() {
+    // Call the PDF function from pdf.js
+    if (typeof window.generatePDF === 'function') {
+        window.generatePDF();
+    } else {
+        showToast("PDF functionality loading...", "info");
+        setTimeout(() => {
+            if (typeof window.generatePDF === 'function') {
+                window.generatePDF();
+            } else {
+                showToast("PDF generation not available. Please reload the page.", "error");
+            }
+        }, 1000);
     }
-}
+};
+window.showToast = showToast;
+
+// Start the app when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait a bit for students data to load if it's in a separate file
+    setTimeout(() => {
+        initApp();
+    }, 100);
+});
+
+// Alternative: Listen for students data loaded event
+window.addEventListener('studentsLoaded', () => {
+    initApp();
+});
