@@ -1,6 +1,48 @@
 // pdf.js
 // PDF Generation Function
 
+/**
+ * Gets attendance data directly from the DOM
+ * This is the most reliable way to get current attendance state
+ */
+function getAttendanceFromDOM() {
+    const presentRolls = new Set();
+    const allCircles = document.querySelectorAll('.circle.present');
+    
+    allCircles.forEach(circle => {
+        const rollNo = parseInt(circle.dataset.roll, 10);
+        if (!isNaN(rollNo)) {
+            presentRolls.add(rollNo);
+        }
+    });
+    
+    return presentRolls;
+}
+
+/**
+ * Gets students data from multiple possible sources
+ */
+function getStudentsData() {
+    // Try window.students first (set by students.js)
+    if (window.students && Array.isArray(window.students) && window.students.length > 0) {
+        return window.students;
+    }
+    
+    // Fallback: build from DOM
+    const students = [];
+    const allCircles = document.querySelectorAll('.circle');
+    
+    allCircles.forEach(circle => {
+        const rollNo = parseInt(circle.dataset.roll, 10);
+        const name = circle.dataset.name || `Student ${rollNo}`;
+        if (!isNaN(rollNo)) {
+            students.push({ rollNo, name });
+        }
+    });
+    
+    return students.sort((a, b) => a.rollNo - b.rollNo);
+}
+
 window.generatePDF = function() {
     try {
         // Check if jsPDF is loaded
@@ -33,8 +75,17 @@ window.generatePDF = function() {
             return;
         }
 
-        // Check if there's attendance to export
-        if (window.presentSet && window.presentSet.size === 0 && window.students && window.students.length > 0) {
+        // Get attendance data directly from DOM (most reliable)
+        const presentSet = getAttendanceFromDOM();
+        const students = getStudentsData();
+        
+        // Check if there's data to export
+        if (students.length === 0) {
+            showToast("No students found!", "error");
+            return;
+        }
+        
+        if (presentSet.size === 0) {
             showToast("No attendance marked to export!", "warning");
             return;
         }
@@ -85,88 +136,84 @@ window.generatePDF = function() {
         yPos += 15;
         
         // =========== SUMMARY SECTION ===========
-        const totalStudents = window.students ? window.students.length : 0;
-        const presentCount = window.presentSet ? window.presentSet.size : 0;
+        const totalStudents = students.length;
+        const presentCount = presentSet.size;
         const absentCount = totalStudents - presentCount;
         const attendancePercentage = totalStudents > 0 ? ((presentCount / totalStudents) * 100).toFixed(1) : 0;
         
+        // Calculate box dimensions
+        const boxWidth = pageWidth - (margin * 2);
+        const boxHeight = 25;
+        
         doc.setDrawColor(34, 197, 94);
         doc.setFillColor(245, 255, 250);
-        doc.rect(margin, yPos, pageWidth - (margin * 2), 25, 'F');
-        doc.rect(margin, yPos, pageWidth - (margin * 2), 25);
+        doc.rect(margin, yPos, boxWidth, boxHeight, 'F');
+        doc.rect(margin, yPos, boxWidth, boxHeight);
+        
+        // Calculate responsive column positions for summary
+        const summaryCol1 = margin + 5;                    // Title column
+        const summaryCol2 = margin + (boxWidth * 0.35);    // 35% - Total/Present
+        const summaryCol3 = margin + (boxWidth * 0.65);    // 65% - Absent/Attendance
         
         doc.setFontSize(14);
         doc.setTextColor(34, 197, 94);
         doc.setFont("helvetica", "bold");
-        doc.text("Attendance Summary", margin + 5, yPos + 10);
+        doc.text("Attendance Summary", summaryCol1, yPos + 10);
         
         doc.setFontSize(10);
         doc.setTextColor(0, 0, 0);
         doc.setFont("helvetica", "normal");
         
-        // Summary text
-        doc.text(`Total Students: ${totalStudents}`, margin + 100, yPos + 10);
-        doc.text(`Present: ${presentCount}`, margin + 100, yPos + 17);
-        doc.text(`Absent: ${absentCount}`, margin + 180, yPos + 10);
-        doc.text(`Attendance: ${attendancePercentage}%`, margin + 180, yPos + 17);
+        // Summary text in responsive columns
+        doc.text(`Total: ${totalStudents}`, summaryCol2, yPos + 10);
+        doc.text(`Present: ${presentCount}`, summaryCol2, yPos + 17);
+        doc.text(`Absent: ${absentCount}`, summaryCol3, yPos + 10);
+        doc.text(`Attendance: ${attendancePercentage}%`, summaryCol3, yPos + 17);
         
         yPos += 35;
         
         // =========== PRESENT STUDENTS SECTION ===========
-        if (presentCount > 0) {
-            doc.setFontSize(16);
-            doc.setTextColor(34, 197, 94);
-            doc.setFont("helvetica", "bold");
-            doc.text("Present Students:", margin, yPos);
-            yPos += 10;
+        doc.setFontSize(16);
+        doc.setTextColor(34, 197, 94);
+        doc.setFont("helvetica", "bold");
+        doc.text("Present Students:", margin, yPos);
+        yPos += 10;
+        
+        // Get present students sorted by roll number
+        const presentStudents = students
+            .filter(s => presentSet.has(s.rollNo))
+            .sort((a, b) => a.rollNo - b.rollNo);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
+        
+        // Render in two columns
+        const col1X = margin;
+        const col2X = pageWidth / 2;
+        let rowY = yPos;
+        
+        for (let i = 0; i < presentStudents.length; i += 2) {
+            // Check if we need a new page
+            if (rowY > pageHeight - 25) {
+                doc.addPage();
+                rowY = margin;
+            }
             
-            // Sort present roll numbers
-            const presentList = window.presentSet ? [...window.presentSet].sort((a, b) => a - b) : [];
+            // First column
+            const student1 = presentStudents[i];
+            doc.text(`${student1.rollNo}. ${student1.name}`, col1X, rowY);
             
-            // Get student details
-            const presentStudents = window.students
-                .filter(s => presentList.includes(s.rollNo))
-                .sort((a, b) => a.rollNo - b.rollNo);
+            // Second column (if exists)
+            if (i + 1 < presentStudents.length) {
+                const student2 = presentStudents[i + 1];
+                doc.text(`${student2.rollNo}. ${student2.name}`, col2X, rowY);
+            }
             
-            doc.setFontSize(10);
-            doc.setTextColor(0, 0, 0);
-            doc.setFont("helvetica", "normal");
-            
-            // Create two columns
-            let col1X = margin;
-            let col2X = pageWidth / 2;
-            let colY = yPos;
-            
-            presentStudents.forEach((student, index) => {
-                // Check if we need a new page
-                if (colY > pageHeight - 20) {
-                    doc.addPage();
-                    col1X = margin;
-                    col2X = pageWidth / 2;
-                    colY = margin;
-                }
-                
-                const line = `${student.rollNo}. ${student.name}`;
-                
-                // Alternate between columns
-                if (index % 2 === 0) {
-                    doc.text(line, col1X, colY);
-                    if (index < presentStudents.length - 1 && index % 2 === 0) {
-                        colY += 6;
-                    }
-                } else {
-                    doc.text(line, col2X, colY - 6); // Same row as previous
-                }
-            });
-            
-            yPos = colY + 10;
-        } else {
-            doc.setFontSize(12);
-            doc.setTextColor(100, 100, 100);
-            doc.setFont("helvetica", "italic");
-            doc.text("No students marked as present", margin, yPos);
-            yPos += 15;
+            rowY += 6;
         }
+        
+        yPos = rowY + 10;
         
         // =========== ABSENT STUDENTS SECTION ===========
         // Add page if needed
@@ -175,8 +222,8 @@ window.generatePDF = function() {
             yPos = margin;
         }
         
-        const absentStudents = window.students
-            .filter(s => !window.presentSet || !window.presentSet.has(s.rollNo))
+        const absentStudents = students
+            .filter(s => !presentSet.has(s.rollNo))
             .sort((a, b) => a.rollNo - b.rollNo);
         
         if (absentStudents.length > 0) {
@@ -190,29 +237,24 @@ window.generatePDF = function() {
             doc.setTextColor(0, 0, 0);
             doc.setFont("helvetica", "normal");
             
-            let col1X = margin;
-            let col2X = pageWidth / 2;
-            let colY = yPos;
+            rowY = yPos;
             
-            absentStudents.forEach((student, index) => {
-                if (colY > pageHeight - 20) {
+            for (let i = 0; i < absentStudents.length; i += 2) {
+                if (rowY > pageHeight - 25) {
                     doc.addPage();
-                    col1X = margin;
-                    col2X = pageWidth / 2;
-                    colY = margin;
+                    rowY = margin;
                 }
                 
-                const line = `${student.rollNo}. ${student.name}`;
+                const student1 = absentStudents[i];
+                doc.text(`${student1.rollNo}. ${student1.name}`, col1X, rowY);
                 
-                if (index % 2 === 0) {
-                    doc.text(line, col1X, colY);
-                    if (index < absentStudents.length - 1 && index % 2 === 0) {
-                        colY += 6;
-                    }
-                } else {
-                    doc.text(line, col2X, colY - 6);
+                if (i + 1 < absentStudents.length) {
+                    const student2 = absentStudents[i + 1];
+                    doc.text(`${student2.rollNo}. ${student2.name}`, col2X, rowY);
                 }
-            });
+                
+                rowY += 6;
+            }
         }
         
         // =========== FOOTER ===========

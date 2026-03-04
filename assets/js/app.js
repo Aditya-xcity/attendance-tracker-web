@@ -12,6 +12,8 @@ const absentCountElement = document.getElementById("absentCount");
 const storageStatusElement = document.getElementById("storageStatus");
 
 let presentSet = new Set();
+// Expose presentSet globally for pdf.js
+window.presentSet = presentSet;
 // Ensure students array exists
 window.students = window.students || [];
 
