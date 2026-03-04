@@ -6,7 +6,7 @@ Built using **HTML, CSS, and Vanilla JavaScript**.
 
 ---
 ## Demo
-[https://rawcdn.githack.com/Aditya-xcity/attendance-tracker-web/85209a4b2115e070cc88cb4c1f1983014ef5ebde/attendance-app/index.html](https://rawcdn.githack.com/Aditya-xcity/attendance-tracker-web/be0849a4bc0ca82a31c682843404c40e06a495e4/attendance-app/index.html)
+https://aditya-xcity.github.io/attendance-tracker-web/
 ---
 ## 👤 Author
 
@@ -182,5 +182,6 @@ This project was built as a **practical, real‑world attendance tool** and demo
 
 **Made with focus and consistency by Aditya Bhardwaj**
 *Simple tools. Real utility.*
+
 
 
