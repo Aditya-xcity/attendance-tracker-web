@@ -26,8 +26,8 @@ Roll No: 07
 
 ### 🔍 Search & Productivity
 
-* Search by **roll number only**
-* Press **Enter** to mark the first matched roll number present
+* Search by **roll number or name**
+* Press **Enter** to mark the first matched student present
 * Fast keyboard + mobile workflow
 
 ### ⏰ Smart Utilities
@@ -40,14 +40,27 @@ Roll No: 07
 
 * Generate **multi‑page PDF attendance reports**
 * Automatic page breaks (no missing students)
-* Live attendance console showing present roll numbers
+* Live attendance console showing present roll numbers in multiple formats
 
   Example:
 
   ```
-  7,36,44,46
+  7, 36, 44, 46
   ```
-* One‑click **Copy to Clipboard** for quick sharing
+* One‑click copy options: **Comma**, **Space**, **Both**, and **CSV**
+
+---
+
+## 🆕 Updated Features (Compared to Previous Version)
+
+| Area | Previous Version | Updated Version |
+| ---- | ---------------- | --------------- |
+| Search | Roll number only | Roll number + name search |
+| Copy output | Single basic copy format | Comma, space, both, and CSV copy formats |
+| Attendance actions | Manual individual marking only | Quick actions: **All Present** and **Clear** |
+| Sharing | Basic copy workflow | Native share support with fallback |
+| Export | Basic PDF output | Structured multi-page PDF with summary + present/absent lists |
+| Convenience | Minimal session workflow | Auto-save and restore with local storage |
 
 ---
 
@@ -137,17 +150,17 @@ No frameworks. No backend. No database.
 * No backend storage
 * No login system
 * No cloud sync
-* No CSV export (yet)
+* No multi-device account sync
 
 ---
 
 ## 🌱 Future Improvements
 
-* Attendance percentage
-* Date‑wise history
-* CSV export
-* PWA (installable app)
-* Name‑based search
+* Attendance trend analytics
+* Date-wise history dashboard
+* PWA improvements (offline-first sync)
+* Cloud backup and restore
+* Class template presets
 
 ---
 
